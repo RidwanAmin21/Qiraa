@@ -9,6 +9,8 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo-google-fonts/amiri": "^0.4.1",
+    "@expo-google-fonts/inter": "^0.4.2",
     "@qiraa/shared": "*",
     "@react-navigation/native": "^7.1.28",
     "@shopify/react-native-skia": "2.4.18",
