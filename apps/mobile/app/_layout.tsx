@@ -14,10 +14,12 @@ export default function RootLayout() {
             fontSize: typography.ui.h2.fontSize,
             fontWeight: typography.ui.h2.fontWeight,
           },
-          contentStyle: { backgroundColor: colors.neutral[50] },
+          contentStyle: {
+            backgroundColor: colors.neutral[50],
+            borderTopWidth: 1,
+            borderTopColor: colors.neutral[200],
+          },
           headerShadowVisible: false,
-          headerBorderBottomWidth: 1,
-          headerBorderBottomColor: colors.neutral[200],
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
