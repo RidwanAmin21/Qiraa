@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+
+# Environment and secrets (never commit)
+.env
+.env.*
+!.env.example
+
+# Expo / React Native
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+*.tsbuildinfo
+
+# Native (generated)
+/ios
+/android
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# Python (ML backend)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.env/
+*.egg-info/
+.eggs/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ML / data (large or sensitive)
+*.npz
+*.pt
+*.pth
+*.onnx
+
+# Debug and logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+logs/
+
+# OS and IDE
+.DS_Store
+*.pem
+.idea/
+*.swp
+*.swo
+
+# Turbo
+.turbo
