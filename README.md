@@ -1,6 +1,6 @@
-# Qiraa
+# Qiraat
 
-Qiraa is a mobile app that helps Muslims improve their Quran recitation by learning from and imitating the styles of renowned reciters.
+Qiraat is a mobile app that helps Muslims improve their Quran recitation by learning from and imitating the styles of renowned reciters.
 
 **Stack:** Expo (React Native) · Turborepo · Supabase · Python/FastAPI ML backend
 

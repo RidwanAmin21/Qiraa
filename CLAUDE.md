@@ -1,6 +1,6 @@
-# CLAUDE.md — Qiraa: Quran Recitation Style Training App
+# CLAUDE.md — Qiraat: Quran Recitation Style Training App
 
-> **Read this entire document before writing any code.** This is the single source of truth for the Qiraa project. Every architectural decision, design token, file path, API contract, and coding standard lives here.
+> **Read this entire document before writing any code.** This is the single source of truth for the Qiraat project. Every architectural decision, design token, file path, API contract, and coding standard lives here.
 
 ---
 
@@ -33,7 +33,7 @@
 
 ## 1. PROJECT VISION
 
-Qiraa is a mobile app that helps Muslims improve their Quran recitation by learning from and imitating the styles of renowned reciters. Users record themselves reciting a verse, and the app analyzes their melody, rhythm, pacing, and word accuracy against a reference reciter — then provides a similarity score with visual feedback showing exactly where they diverged.
+Qiraat is a mobile app that helps Muslims improve their Quran recitation by learning from and imitating the styles of renowned reciters. Users record themselves reciting a verse, and the app analyzes their melody, rhythm, pacing, and word accuracy against a reference reciter — then provides a similarity score with visual feedback showing exactly where they diverged.
 
 **The one-line pitch:** "Practice Quran recitation alongside your favorite reciters and see exactly how to sound more like them."
 
@@ -456,9 +456,9 @@ export const radius = {
 // app.json (key fields)
 {
   "expo": {
-    "name": "Qiraa",
-    "slug": "qiraa",
-    "scheme": "qiraa",
+  "name": "Qiraat",
+  "slug": "qiraat",
+  "scheme": "qiraat",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -467,7 +467,7 @@ export const radius = {
       [
         "expo-av",
         {
-          "microphonePermission": "Qiraa needs microphone access to record your recitation."
+          "microphonePermission": "Qiraat needs microphone access to record your recitation."
         }
       ],
       "expo-haptics",
@@ -482,7 +482,7 @@ export const radius = {
     "ios": {
       "bundleIdentifier": "com.qiraa.app",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Qiraa needs microphone access to record your Quran recitation for analysis.",
+        "NSMicrophoneUsageDescription": "Qiraat needs microphone access to record your Quran recitation for analysis.",
         "UIBackgroundModes": ["audio"]
       }
     },
@@ -611,7 +611,7 @@ from app.routers import analyze, results, health
 from app.config import settings
 
 app = FastAPI(
-    title="Qiraa ML Service",
+ title="Qiraat ML Service",
     version="1.0.0",
     docs_url="/ml/v1/docs",
 )
@@ -1454,7 +1454,7 @@ interface RecitationState {
 | `wrong_text` | "It seems like a different verse was recited. Please try again with the verse shown on screen." | Show retry + reference player |
 | `processing_failed` | "Something went wrong on our end. Please try again." | Show retry + contact support link |
 | `network_error` | "No internet connection. Please check your connection and try again." | Show retry button |
-| `mic_permission_denied` | "Qiraa needs microphone access to record your recitation. Tap Settings to enable it." | Show "Open Settings" button |
+| `mic_permission_denied` | "Qiraat needs microphone access to record your recitation. Tap Settings to enable it." | Show "Open Settings" button |
 
 ### Error Boundaries
 

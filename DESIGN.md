@@ -1,6 +1,6 @@
-# DESIGN.md — Qiraa Design Principles & Reference
+# DESIGN.md — Qiraat Design Principles & Reference
 
-> This file is the design authority for all Qiraa UI code. Claude Code and any contributor
+> This file is the design authority for all Qiraat UI code. Claude Code and any contributor
 > must follow these rules when creating or modifying components, screens, or styles.
 > If something contradicts this file, this file wins.
 
@@ -8,7 +8,7 @@
 
 ## PRODUCT IDENTITY
 
-Qiraa is a Quran recitation practice app. Users record themselves reciting a verse and
+Qiraat is a Quran recitation practice app. Users record themselves reciting a verse and
 the app scores how closely they match a renowned reciter's style across melody, rhythm,
 word accuracy, and vocal dynamics.
 

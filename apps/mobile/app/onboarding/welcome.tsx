@@ -226,7 +226,7 @@ export default function WelcomeScreen() {
         </Animated.View>
 
         <Animated.View style={[styles.nameArea, contentStyle]}>
-          <Text style={styles.appName}>Qiraa</Text>
+          <Text style={styles.appName}>Qiraat</Text>
           <Text style={styles.appNameArabic}>قراءة</Text>
           <View style={styles.taglineSpacer} />
           <Text style={styles.tagline}>
