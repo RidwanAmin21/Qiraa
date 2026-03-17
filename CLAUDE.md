@@ -1,6 +1,6 @@
-# CLAUDE.md — Qiraat: Quran Recitation Style Training App
+# CLAUDE.md — Qiraa: Quran Recitation Style Training App
 
-> **Read this entire document before writing any code.** This is the single source of truth for the Qiraat project. Every architectural decision, design token, file path, API contract, and coding standard lives here.
+> **Read this entire document before writing any code.** This is the single source of truth for the Qiraa project. Every architectural decision, design token, file path, API contract, and coding standard lives here.
 
 ---
 
@@ -21,19 +21,20 @@
 13. [Authentication & Authorization](#13-authentication--authorization)
 14. [Screen Specifications](#14-screen-specifications)
 15. [State Management](#15-state-management)
-16. [Error Handling](#16-error-handling)
-17. [Performance Targets](#17-performance-targets)
-18. [Testing Strategy](#18-testing-strategy)
-19. [Deployment & CI/CD](#19-deployment--cicd)
-20. [Coding Standards](#20-coding-standards)
-21. [Phase 1 Scope Boundaries](#21-phase-1-scope-boundaries)
-22. [Common Pitfalls](#22-common-pitfalls)
+16. [Mobile Architecture Patterns](#16-mobile-architecture-patterns)
+17. [Error Handling](#17-error-handling)
+18. [Performance Targets](#18-performance-targets)
+19. [Testing Strategy](#19-testing-strategy)
+20. [Deployment & CI/CD](#20-deployment--cicd)
+21. [Coding Standards](#21-coding-standards)
+22. [Phase 1 Scope Boundaries](#22-phase-1-scope-boundaries)
+23. [Common Pitfalls](#23-common-pitfalls)
 
 ---
 
 ## 1. PROJECT VISION
 
-Qiraat is a mobile app that helps Muslims improve their Quran recitation by learning from and imitating the styles of renowned reciters. Users record themselves reciting a verse, and the app analyzes their melody, rhythm, pacing, and word accuracy against a reference reciter — then provides a similarity score with visual feedback showing exactly where they diverged.
+Qiraa is a mobile app that helps Muslims improve their Quran recitation by learning from and imitating the styles of renowned reciters. Users record themselves reciting a verse, and the app analyzes their melody, rhythm, pacing, and word accuracy against a reference reciter — then provides a similarity score with visual feedback showing exactly where they diverged.
 
 **The one-line pitch:** "Practice Quran recitation alongside your favorite reciters and see exactly how to sound more like them."
 
@@ -176,20 +177,30 @@ qiraa/
 │   │   │       ├── SafeArea.tsx
 │   │   │       ├── ScreenHeader.tsx
 │   │   │       └── LoadingScreen.tsx      # Analysis waiting state
+│   │   ├── core/
+│   │   │   ├── audio/                 # Centralized audio engine (see Section 16)
+│   │   │   │   ├── audioEngine.ts     # Single owner of all record/play, session switching
+│   │   │   │   ├── audioSession.ts    # iOS/Android audio session configuration
+│   │   │   │   ├── audioPermissions.ts # Permission request + status tracking
+│   │   │   │   └── types.ts           # Audio engine types and event interfaces
+│   │   │   └── api/                   # Centralized API layer (see Section 16)
+│   │   │       ├── client.ts          # Base URL, auth headers, retries, timeout, error normalization
+│   │   │       ├── endpoints.ts       # Typed endpoint functions (getSurahs, submitAnalysis, etc.)
+│   │   │       └── upload.ts          # Upload URL request, file upload, progress events
 │   │   ├── hooks/
-│   │   │   ├── useAudioRecorder.ts    # expo-av recording logic
-│   │   │   ├── useAudioPlayer.ts      # expo-av playback logic
+│   │   │   ├── useAudioRecorder.ts    # Recording hook — delegates to core/audio/audioEngine
+│   │   │   ├── useAudioPlayer.ts      # Playback hook — delegates to core/audio/audioEngine
 │   │   │   ├── useAnalysis.ts         # Submit recording + poll for results
-│   │   │   ├── useAmplitude.ts        # Real-time amplitude metering
+│   │   │   ├── useAmplitude.ts        # Real-time amplitude metering (Reanimated shared values)
 │   │   │   └── useAuth.ts             # Supabase auth state
 │   │   ├── stores/
-│   │   │   ├── authStore.ts           # Auth state (Zustand)
-│   │   │   ├── recitationStore.ts     # Current recitation session state
-│   │   │   ├── progressStore.ts       # User progress data
-│   │   │   └── settingsStore.ts       # User preferences
+│   │   │   ├── authStore.ts           # Auth state (Zustand) — global
+│   │   │   ├── settingsStore.ts       # User preferences — global
+│   │   │   ├── progressStore.ts       # User progress data — global
+│   │   │   ├── studioStore.ts         # Studio state machine — feature-local (see Section 16)
+│   │   │   └── resultsStore.ts        # Current results view — feature-local
 │   │   ├── lib/
 │   │   │   ├── supabase.ts            # Supabase client init
-│   │   │   ├── api.ts                 # ML backend API client
 │   │   │   └── constants.ts           # App-wide constants
 │   │   ├── theme/
 │   │   │   ├── colors.ts
@@ -456,9 +467,9 @@ export const radius = {
 // app.json (key fields)
 {
   "expo": {
-  "name": "Qiraat",
-  "slug": "qiraat",
-  "scheme": "qiraat",
+    "name": "Qiraa",
+    "slug": "qiraa",
+    "scheme": "qiraa",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -467,7 +478,7 @@ export const radius = {
       [
         "expo-av",
         {
-          "microphonePermission": "Qiraat needs microphone access to record your recitation."
+          "microphonePermission": "Qiraa needs microphone access to record your recitation."
         }
       ],
       "expo-haptics",
@@ -482,7 +493,7 @@ export const radius = {
     "ios": {
       "bundleIdentifier": "com.qiraa.app",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Qiraat needs microphone access to record your Quran recitation for analysis.",
+        "NSMicrophoneUsageDescription": "Qiraa needs microphone access to record your Quran recitation for analysis.",
         "UIBackgroundModes": ["audio"]
       }
     },
@@ -611,7 +622,7 @@ from app.routers import analyze, results, health
 from app.config import settings
 
 app = FastAPI(
- title="Qiraat ML Service",
+    title="Qiraa ML Service",
     version="1.0.0",
     docs_url="/ml/v1/docs",
 )
@@ -1343,23 +1354,70 @@ interface AuthState {
 └─────────────────────────────────┘
 ```
 
-**State machine for this screen:**
+**State machine for this screen (see Section 16 for full architecture):**
+
 ```
-IDLE → (tap record) → RECORDING → (tap stop) → UPLOADING → ANALYZING → RESULTS
-  ↑                                                              |
-  └──────────────── (tap retry on Results screen) ───────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│  idle ──→ preparingReference ──→ ready ←──────────────────────┐    │
+│                                    │                           │    │
+│                                    ├──→ playingReference ──→ ready  │
+│                                    │                           │    │
+│                                    └──→ recording ──→ recorded │    │
+│                                                         │      │    │
+│                                                         ▼      │    │
+│                                                     uploading  │    │
+│                                                         │      │    │
+│                                                         ▼      │    │
+│                                                     analyzing  │    │
+│                                                         │      │    │
+│                                                         ▼      │    │
+│                                                    resultsReady ┘    │
+│                                                                     │
+│  Substates (can overlay any primary state):                         │
+│    • permissionDenied — mic permission not granted                  │
+│    • interrupted — incoming call, AirPods disconnect, alarm         │
+│    • networkRetrying — upload failed, retrying with backoff         │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Transition rules (enforced by studioStore — see Section 16):**
+
+| From | To | Trigger | Guard |
+|---|---|---|---|
+| `idle` | `preparingReference` | Screen mounts with valid ayahId | — |
+| `preparingReference` | `ready` | Reference audio loaded + buffered | Audio preload succeeds |
+| `ready` | `playingReference` | User taps play on ReferencePlayer | Not in recording mode |
+| `playingReference` | `ready` | Playback completes or user taps stop | — |
+| `ready` | `recording` | User taps RecordButton | Mic permission granted, no active playback |
+| `recording` | `recorded` | User taps stop | Minimum 1s recorded |
+| `recorded` | `uploading` | Automatic (immediately after stop) | Valid recording URI exists |
+| `uploading` | `analyzing` | Upload completes, job_id received | — |
+| `analyzing` | `resultsReady` | Poll returns `status: "completed"` | — |
+| `resultsReady` | `ready` | User taps Retry | Reset recording state |
+| Any state | `error` | Unrecoverable failure | — |
+| `error` | `idle` | User taps Retry | — |
+
+**What should NEVER happen:**
+- Playback starting while `recording` is active (audio session conflict)
+- Two concurrent recordings (double-tap on RecordButton)
+- Upload triggered before a valid recording exists
+- Controls showing mismatched state during analysis
+- Reference player enabled during recording
 
 During RECORDING:
 - RecordButton shows pulse animation
-- AmplitudeRing shows real-time mic levels
+- AmplitudeRing shows real-time mic levels (via Reanimated shared values, NOT React state)
 - Timer counts up
-- Reference player is disabled
+- Reference player is disabled (grayed out, non-interactive)
 
 During UPLOADING:
 - Navigate to LoadingScreen
 - Upload audio to Supabase Storage
 - POST to /ml/v1/analyze
 - Show "Uploading your recitation..."
+- On network failure: transition to `networkRetrying` substate, retry with exponential backoff (max 3 attempts)
 
 During ANALYZING:
 - Poll GET /ml/v1/results/{job_id} every 1.5s
@@ -1368,6 +1426,11 @@ During ANALYZING:
   - "extracting" → "Analyzing your melody..."
   - "comparing" → "Comparing your rhythm..."
   - "scoring" → "Calculating your score..."
+
+On INTERRUPTED (incoming call, AirPods disconnect, etc.):
+- If recording: stop recording gracefully, preserve audio, transition to `recorded`
+- If playing reference: pause playback, resume when interruption ends
+- Never silently lose a recording
 
 On completion:
 - Navigate to Results screen with recording ID
@@ -1412,38 +1475,385 @@ On completion:
 
 ## 15. STATE MANAGEMENT
 
-### Zustand Stores
+### Architecture: Zustand with strict responsibility boundaries
+
+State is split into three tiers. Mixing tiers causes either performance problems or architectural spaghetti.
+
+### Tier 1: Global Zustand Stores
+
+Stores that persist across screens and are read by many parts of the app. These live in `stores/` and are created with `create()` from Zustand.
 
 ```typescript
-// stores/recitationStore.ts — manages current recitation session
-interface RecitationState {
-  // Current session
-  currentSurahId: string | null;
-  currentAyahId: string | null;
-  currentReciterId: string | null;
+// stores/authStore.ts — Auth state
+interface AuthState {
+  session: Session | null;
+  user: User | null;
+  profile: { name: string; preferred_reciter_id: string; onboarded: boolean } | null;
+  isLoading: boolean;
+  setSession: (session: Session | null) => void;
+  setProfile: (profile: AuthState['profile']) => void;
+}
+
+// stores/settingsStore.ts — User preferences
+interface SettingsState {
+  preferredReciterId: string | null;
+  playbackSpeed: number;       // 0.75 | 1.0 | 1.25
+  notificationsEnabled: boolean;
+  setPreferredReciter: (id: string) => void;
+  setPlaybackSpeed: (speed: number) => void;
+}
+
+// stores/progressStore.ts — Aggregated progress data
+interface ProgressState {
+  streak: { current: number; longest: number; lastActiveDate: string | null };
+  surahProgress: Map<string, { bestScore: number; totalAttempts: number }>;
+  recentResults: AnalysisResult[];
+  fetchProgress: () => Promise<void>;
+}
+```
+
+### Tier 2: Feature-Local Zustand Stores
+
+Stores that own state for a specific feature flow. Created fresh when the feature mounts, reset when it unmounts. These also live in `stores/` but are scoped to one feature.
+
+```typescript
+// stores/studioStore.ts — Studio state machine (see Section 16 for full spec)
+interface StudioState {
+  // State machine
+  status: StudioStatus;  // idle | preparingReference | ready | playingReference | recording | recorded | uploading | analyzing | resultsReady | error
+  substate: StudioSubstate | null;  // permissionDenied | interrupted | networkRetrying | null
   
-  // Recording state machine
-  recordingStatus: 'idle' | 'recording' | 'uploading' | 'analyzing' | 'completed' | 'error';
+  // Session context
+  surahId: string | null;
+  ayahId: string | null;
+  reciterId: string | null;
+  
+  // Recording data
   recordingUri: string | null;
+  recordingDurationMs: number;
+  
+  // Analysis tracking
   analysisJobId: string | null;
-  analysisStage: string | null;
+  analysisStage: string | null;   // transcribing | extracting | comparing | scoring
   
-  // Results (populated after analysis)
-  currentResults: AnalysisResult | null;
-  
-  // Actions
-  startSession: (surahId: string, ayahId: string, reciterId: string) => void;
-  setRecordingUri: (uri: string) => void;
-  setAnalysisJobId: (jobId: string) => void;
-  setAnalysisStage: (stage: string) => void;
-  setResults: (results: AnalysisResult) => void;
+  // Transitions (each enforces guards — see Section 14 transition table)
+  initSession: (surahId: string, ayahId: string, reciterId: string) => void;
+  onReferenceLoaded: () => void;
+  startPlayback: () => void;
+  stopPlayback: () => void;
+  startRecording: () => void;
+  stopRecording: (uri: string, durationMs: number) => void;
+  onUploadComplete: (jobId: string) => void;
+  onAnalysisStageUpdate: (stage: string) => void;
+  onAnalysisComplete: () => void;
+  onError: (error: StudioError) => void;
+  onInterrupted: () => void;
+  retry: () => void;
+  reset: () => void;
+}
+
+// stores/resultsStore.ts — Current results view
+interface ResultsState {
+  recordingId: string | null;
+  results: AnalysisResult | null;
+  isExpanded: { dimensions: boolean; pitchOverlay: boolean };
+  setResults: (recordingId: string, results: AnalysisResult) => void;
+  toggleSection: (section: 'dimensions' | 'pitchOverlay') => void;
   reset: () => void;
 }
 ```
 
+### Tier 3: Animation & High-Frequency Values (NEVER in Zustand)
+
+Any value that updates faster than ~4Hz (250ms) MUST use Reanimated shared values or component-local refs. Putting these in Zustand (or React state) causes full-tree re-renders and dropped frames.
+
+**Values that belong in Tier 3 (never in a store):**
+- Waveform amplitude (updates every 50ms during recording)
+- Record button pulse animation progress
+- Score ring fill progress during reveal animation
+- Pitch overlay drawing coordinates
+- Any spring/timing animation intermediate values
+
+**How to wire them:**
+```typescript
+// Inside a hook or component — NOT in a Zustand store
+const amplitudeValue = useSharedValue(0);  // Reanimated, drives AmplitudeRing
+const pulseScale = useSharedValue(1);       // Reanimated, drives RecordButton pulse
+const scoreProgress = useSharedValue(0);    // Reanimated, drives ProgressRing fill
+
+// expo-av metering callback writes directly to shared value
+const onMeteringUpdate = (metering: number) => {
+  amplitudeValue.value = withSpring(normalize(metering), {
+    damping: 15,
+    stiffness: 150,
+  });
+};
+```
+
+### Rules (MUST FOLLOW)
+
+1. **No store may import another store.** If two stores need to coordinate, the coordination happens in a hook or component that reads both.
+2. **Feature stores reset on unmount.** When the user leaves the Studio screen, `studioStore.reset()` is called. Stale state from a previous session must never bleed into the next one.
+3. **Global stores are hydrated once at app start.** `authStore` hydrates from Supabase session. `progressStore` fetches on app foreground. `settingsStore` reads from AsyncStorage.
+4. **Transition methods enforce guards.** `studioStore.startRecording()` checks that `status === 'ready'` and `substate !== 'permissionDenied'` before transitioning. Invalid transitions are no-ops with a warning log, never crashes.
+5. **No derived state in stores.** If you need `isRecording` (a boolean), derive it in the component: `const isRecording = useStudioStore(s => s.status === 'recording')`. Don't store redundant booleans.
+```
+
+5. **No derived state in stores.** If you need `isRecording` (a boolean), derive it in the component: `const isRecording = useStudioStore(s => s.status === 'recording')`. Don't store redundant booleans.
+
 ---
 
-## 16. ERROR HANDLING
+## 16. MOBILE ARCHITECTURE PATTERNS
+
+This section covers the architectural patterns that make the difference between "works" and "feels like a native app." These are non-negotiable for Phase 1 quality.
+
+### 16.1 Centralized Audio Engine
+
+**The rule: all record/play actions go through one shared audio service. Never ad hoc inside components.**
+
+The audio engine (`core/audio/audioEngine.ts`) is the single owner of:
+- Microphone permission handling
+- iOS/Android audio session mode switching
+- Record start/stop
+- Playback start/stop
+- Audio interruption handling (calls, alarms, AirPods connect/disconnect)
+- Metering updates (amplitude data for the AmplitudeRing)
+- File normalization and upload preparation
+
+This matters because iOS audio behavior is fragile. The `allowsRecordingIOS` toggle (Common Pitfall #1) is exactly the kind of bug that makes an app feel cheap even if the UI looks nice. By funneling everything through one service, the session state is always consistent.
+
+```typescript
+// core/audio/audioEngine.ts — Singleton, initialized once at app start
+
+type AudioEngineState = 'idle' | 'configuredForPlayback' | 'configuredForRecording' | 'recording' | 'playing';
+
+interface AudioEngine {
+  // State
+  getState(): AudioEngineState;
+  
+  // Session management (handles iOS allowsRecordingIOS toggle automatically)
+  configureForPlayback(): Promise<void>;
+  configureForRecording(): Promise<void>;
+  
+  // Recording
+  startRecording(): Promise<void>;     // Calls configureForRecording() internally
+  stopRecording(): Promise<{ uri: string; durationMs: number }>;
+  
+  // Playback
+  loadSound(url: string): Promise<void>;
+  play(): Promise<void>;               // Calls configureForPlayback() internally
+  pause(): void;
+  stop(): void;
+  seekTo(positionMs: number): void;
+  setPlaybackSpeed(rate: number): void;
+  
+  // Metering (for AmplitudeRing — writes to Reanimated shared value)
+  onMeteringUpdate: ((normalized: number) => void) | null;
+  
+  // Interruption handling
+  onInterruption: ((type: 'began' | 'ended') => void) | null;
+  
+  // Permissions
+  requestMicPermission(): Promise<'granted' | 'denied' | 'undetermined'>;
+  getMicPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'>;
+  
+  // Cleanup
+  dispose(): Promise<void>;
+}
+```
+
+**Critical behavior:**
+- `startRecording()` MUST internally call `configureForRecording()` and verify the session is in recording mode before starting. If playback is active, it stops playback first.
+- `play()` MUST internally call `configureForPlayback()` before starting. If recording is active, it rejects with an error (recording should be stopped explicitly by the user).
+- On interruption (incoming call), if recording: stop recording gracefully, preserve the audio file, emit `onInterruption('began')`. The studioStore transitions to `interrupted` substate.
+- The engine never throws on benign failures (e.g., stopping a recording that isn't active). It logs a warning and returns gracefully.
+
+**Hooks delegate to the engine, they don't own audio logic:**
+```typescript
+// hooks/useAudioRecorder.ts — thin wrapper
+export function useAudioRecorder() {
+  const engine = useAudioEngine();  // Singleton via React context
+  const studioStore = useStudioStore();
+  
+  const startRecording = useCallback(async () => {
+    if (studioStore.status !== 'ready') return;  // Guard
+    studioStore.startRecording();
+    await engine.startRecording();
+  }, [engine, studioStore]);
+  
+  // ... similar for stopRecording
+}
+```
+
+### 16.2 Rendering Tier Separation
+
+Not everything needs the same rendering approach. Using the wrong tier for a component either wastes performance or makes visuals janky.
+
+| Tier | Technology | Use For | Examples |
+|---|---|---|---|
+| Standard RN | Views, Text, ScrollView | All layouts, text, lists, cards | SurahCard, AyahListItem, FeedbackCard, ScreenHeader |
+| Reanimated | `useSharedValue` + `useAnimatedStyle` | Any motion at >4Hz or gesture-driven | AmplitudeRing, RecordButton pulse, ProgressRing fill, score counting |
+| Skia | `@shopify/react-native-skia` Canvas | GPU-rendered custom 2D graphics | PitchOverlay contour chart, WaveformView |
+
+**Rules:**
+1. **Default to standard RN.** Only reach for Reanimated when something moves or animates. Only reach for Skia when standard RN can't draw what you need.
+2. **Reanimated animations never touch React state.** The 50ms amplitude updates write to a `useSharedValue`. The pulse animation is a `withRepeat(withTiming(...))`. The score counting is a `withTiming` on a shared value. None of these trigger React re-renders.
+3. **Skia components are isolated.** The `PitchOverlay` is a self-contained `<Canvas>` that receives data via props and draws everything internally. It does not read from Zustand during drawing — it receives pre-computed arrays.
+4. **No re-rendering entire screens during recording.** The Studio screen during active recording should have zero React re-renders from amplitude updates. Verify with React DevTools Profiler.
+
+### 16.3 API & Data Layer
+
+The network layer is boring and centralized. No screen or hook directly constructs fetch requests.
+
+```typescript
+// core/api/client.ts — Base API client
+// Owns: base URL, auth headers from Supabase session, retry logic, timeout defaults, error normalization
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_ML_BACKEND_URL;
+const DEFAULT_TIMEOUT_MS = 15_000;
+const MAX_RETRIES = 2;  // For idempotent GET requests only
+
+interface ApiError {
+  code: string;
+  message: string;
+  statusCode: number;
+}
+
+async function apiRequest<T>(
+  method: 'GET' | 'POST',
+  path: string,
+  options?: { body?: unknown; timeout?: number; retries?: number }
+): Promise<T>;
+```
+
+```typescript
+// core/api/endpoints.ts — Typed endpoint functions
+// Every ML backend call is a named function with typed input/output
+
+export async function submitAnalysisJob(params: {
+  audioUrl: string;
+  ayahId: string;
+  reciterId: string;
+  expectedText: string;
+}): Promise<{ jobId: string; status: 'queued' }>;
+
+export async function getAnalysisStatus(jobId: string): Promise<AnalysisStatusResponse>;
+
+// Supabase queries are also wrapped here for consistency
+export async function getSurahs(): Promise<Surah[]>;
+export async function getAyahs(surahId: string): Promise<Ayah[]>;
+export async function getReciters(): Promise<Reciter[]>;
+export async function getReferenceAudio(reciterId: string, ayahId: string): Promise<ReferenceAudio>;
+export async function getUserProgress(userId: string): Promise<UserProgress[]>;
+export async function getScoreHistory(userId: string, ayahId: string): Promise<AnalysisResult[]>;
+```
+
+```typescript
+// core/api/upload.ts — Separate upload concerns
+// Upload is async orchestration with progress events — it doesn't belong in a generic API client
+
+export async function uploadRecording(params: {
+  userId: string;
+  recordingId: string;
+  fileUri: string;
+  onProgress?: (percent: number) => void;
+}): Promise<{ audioUrl: string }>;
+// Internally: request presigned URL → upload file → confirm → return public URL
+```
+
+**Why this structure:**
+- `client.ts` is the only file that knows about auth headers, retries, and error normalization.
+- `endpoints.ts` is the only file that screen code imports. If an endpoint changes, you change one function signature.
+- `upload.ts` is separate because upload has progress events, retry semantics, and file handling that don't fit the standard request/response pattern.
+- No screen or hook ever constructs a raw `fetch()` call.
+
+### 16.4 Caching & Preloading Strategy
+
+A lot of "native feel" is actually responsiveness, not framework choice. Users forgive cross-platform frameworks. They don't forgive lag.
+
+**Cache locally (persist across sessions via AsyncStorage or Supabase local cache):**
+- Current user session + profile
+- Preferred reciter ID
+- Recently opened surahs/ayahs metadata
+- Surah and reciter lists (these change rarely — refresh on app foreground, max once per hour)
+
+**Preload aggressively (in-memory, per navigation flow):**
+- When user opens an ayah list: preload reference audio for the first ayah + preferred reciter
+- When user enters Studio: preload reference audio for the current ayah (should already be cached from ayah list)
+- When user finishes recording: while uploading, preload the next ayah's reference audio
+- Reciter images: prefetch on Browse screen mount
+
+**What to avoid during recording (JS thread budget is precious):**
+- No JSON parsing in render paths
+- No unnecessary logging during live recording
+- No `useState`-driven meter animations (see Tier 3 in Section 15)
+- No network requests except the metering callback writing to Reanimated
+
+**Preloading implementation:**
+```typescript
+// In the ayah list screen or a prefetch hook
+useEffect(() => {
+  // When the user is browsing ayahs, preload audio for the most likely next action
+  const prefetchAudio = async () => {
+    const ref = await getReferenceAudio(preferredReciterId, firstAyahId);
+    await audioEngine.loadSound(ref.audioUrl);  // Buffered and ready
+  };
+  prefetchAudio();
+}, [preferredReciterId, firstAyahId]);
+```
+
+**Performance acceptance criteria (these are definition-of-done, not aspirational):**
+
+| Metric | Target | Measurement |
+|---|---|---|
+| Recording start delay | < 300ms | From RecordButton press to `onRecordingStatusUpdate` firing |
+| UI frame rate during recording | > 58 fps | RN Perf Monitor on iPhone 13 and Samsung A54 |
+| Reference audio playback ready | < 1 second | From ayah selection to first audio frame playing |
+| App cold start to interactive | < 3 seconds | From tap on app icon to Home screen fully rendered |
+| Analysis round-trip | < 8 seconds | From upload completion to results received |
+| Studio screen mount to ready | < 500ms | From navigation to `ready` state (reference loaded, controls active) |
+
+### 16.5 iOS-Specific Quality Bars
+
+The app must feel like an iPhone app, not a cross-platform app. These are hard release gates for iPhone — the app does not ship if any fail.
+
+**Audio behavior (test on real devices, not simulator):**
+- Speaker routing is correct after every record → playback switch (no earpiece audio)
+- Recording survives switching between reference playback and recording 5+ times in a row
+- Audio interruptions (incoming call, alarm, AirPods disconnect) recover gracefully
+- Silent mode switch does not break recording or playback
+- First-time mic permission flow is smooth (prompt appears, granting works immediately)
+
+**Interaction quality:**
+- Haptic feedback fires on RecordButton start (medium impact) and stop (light impact)
+- Touch targets are at least 44x44pt
+- Transitions between screens use native-feeling curves (not linear)
+- No keyboard or scroll jank on any screen
+- Safe area insets are respected on all device sizes (including iPhone SE and iPhone 15 Pro Max)
+
+**If RN becomes the bottleneck for any audio behavior:** build or adopt a small native iOS bridge for the specific failing area (recording latency, metering precision, session switching). The architecture supports this — the `audioEngine` interface is an abstraction that can swap implementations.
+
+### 16.6 Native Bridge Escape Hatch
+
+The architecture is designed so the audio engine can be replaced with a native implementation without changing any hook, store, or component code.
+
+```
+Components → Hooks → AudioEngine interface → expo-av implementation (default)
+                                            → Native iOS bridge (if needed)
+                                            → Native Android bridge (if needed)
+```
+
+**When to pull this lever:**
+- Recording start delay exceeds 300ms consistently on real devices
+- Metering updates arrive with visible jitter (>100ms gaps)
+- Audio session switching causes audible artifacts
+- expo-av cannot handle a specific interruption scenario
+
+**How:** Create `core/audio/nativeAudioEngine.ios.ts` that conforms to the same `AudioEngine` interface but uses a Turbo Module or Expo Module API to call native AVAudioSession / AVAudioRecorder directly. The rest of the app doesn't change.
+
+---
+
+## 17. ERROR HANDLING
 
 ### User-Facing Error Messages
 
@@ -1454,7 +1864,7 @@ interface RecitationState {
 | `wrong_text` | "It seems like a different verse was recited. Please try again with the verse shown on screen." | Show retry + reference player |
 | `processing_failed` | "Something went wrong on our end. Please try again." | Show retry + contact support link |
 | `network_error` | "No internet connection. Please check your connection and try again." | Show retry button |
-| `mic_permission_denied` | "Qiraat needs microphone access to record your recitation. Tap Settings to enable it." | Show "Open Settings" button |
+| `mic_permission_denied` | "Qiraa needs microphone access to record your recitation. Tap Settings to enable it." | Show "Open Settings" button |
 
 ### Error Boundaries
 
@@ -1462,20 +1872,24 @@ Every screen must have a top-level error boundary that catches render errors and
 
 ---
 
-## 17. PERFORMANCE TARGETS
+## 18. PERFORMANCE TARGETS
+
+**These are definition-of-done criteria, not aspirational goals. See Section 16.4 for the caching and preloading strategies that achieve them.**
 
 | Metric | Target | How to Verify |
 |---|---|---|
 | Audio analysis round-trip | < 8 seconds | Measure from upload completion to results received |
 | App cold start | < 3 seconds | Test on iPhone 13 and Samsung A54 |
 | Reference audio load | < 1 second | From ayah selection to playback ready (CDN-cached) |
-| Recording start delay | < 300ms | From button press to actual recording start |
-| UI frame rate | > 58 fps | During recording animation (use RN perf monitor) |
+| Recording start delay | < 300ms | From RecordButton press to `onRecordingStatusUpdate` firing |
+| UI frame rate | > 58 fps | During recording animation (use RN perf monitor on real devices) |
 | App bundle size | < 50 MB | Expo EAS build output |
+| Studio screen mount to ready | < 500ms | From navigation to `ready` state (reference loaded, controls active) |
+| Zero React re-renders during recording | 0 renders | Verify with React DevTools Profiler during 10s recording |
 
 ---
 
-## 18. TESTING STRATEGY
+## 19. TESTING STRATEGY
 
 ### Unit Tests
 - Scoring engine: Given known pitch contours, verify expected scores
@@ -1494,6 +1908,19 @@ Every screen must have a top-level error boundary that catches render errors and
 - Silent mode switch behavior on iOS
 - Audio interruption handling (incoming call during recording)
 
+### iOS Audio Quality Gates (Hard Release Gates — see Section 16.5)
+
+These must pass on at least two real iPhones before any release. Do NOT rely on simulator testing for audio.
+
+- [ ] Speaker routing is correct after every record → playback switch (no earpiece audio)
+- [ ] Recording survives switching between reference playback and recording 5+ times in a row
+- [ ] Audio interruptions (incoming call, alarm, AirPods disconnect) recover gracefully
+- [ ] Silent mode switch does not break recording or playback
+- [ ] First-time mic permission flow is smooth (prompt appears, granting works immediately)
+- [ ] Bad network during upload/analyze shows appropriate error and allows retry
+- [ ] Haptic feedback fires correctly on RecordButton start and stop
+- [ ] Zero React re-renders during a 10-second recording session (verify with Profiler)
+
 ### Expert Validation
 - 2-3 Tajweed-knowledgeable people recite same ayah at 3 quality levels
 - Verify scores rank correctly: excellent > mediocre > poor
@@ -1502,7 +1929,7 @@ Every screen must have a top-level error boundary that catches render errors and
 
 ---
 
-## 19. DEPLOYMENT & CI/CD
+## 20. DEPLOYMENT & CI/CD
 
 ### Mobile (Expo EAS)
 
@@ -1584,7 +2011,7 @@ jobs:
 
 ---
 
-## 20. CODING STANDARDS
+## 21. CODING STANDARDS
 
 ### TypeScript (Mobile + Web + Shared)
 - **Strict mode:** `"strict": true` in all tsconfig files
@@ -1610,7 +2037,7 @@ jobs:
 
 ---
 
-## 21. PHASE 1 SCOPE BOUNDARIES
+## 22. PHASE 1 SCOPE BOUNDARIES
 
 ### DO Build
 - ✅ Everything in the Screen Specifications (Section 14)
@@ -1634,9 +2061,9 @@ jobs:
 
 ---
 
-## 22. COMMON PITFALLS
+## 23. COMMON PITFALLS
 
-1. **iOS audio session switching.** You MUST toggle `allowsRecordingIOS` between recording and playback modes. See Section 6 for exact configuration. Failure to do this causes audio to route through the earpiece.
+1. **iOS audio session switching.** You MUST toggle `allowsRecordingIOS` between recording and playback modes. See Section 6 for exact configuration and Section 16.1 for the centralized audio engine that prevents this. Failure to do this causes audio to route through the earpiece.
 
 2. **Whisper output has no diacritics.** When comparing ASR output to expected text, strip Arabic diacritics from BOTH strings before computing Levenshtein distance. The `text_simple` column in the `ayahs` table stores the stripped version for this purpose.
 
@@ -1648,13 +2075,19 @@ jobs:
 
 6. **Arabic text line-breaking.** React Native's default text component handles Arabic shaping correctly, but line-breaking can split words awkwardly. Set `textAlign: 'center'` for the AyahText component and use generous horizontal padding to avoid mid-word breaks.
 
-7. **Recording amplitude ring needs Reanimated.** The 50ms amplitude updates from expo-av must drive a Reanimated shared value, NOT React state. Using `useState` for 20Hz updates will cause frame drops. Always use `useSharedValue` + `useAnimatedStyle`.
+7. **Recording amplitude ring needs Reanimated.** The 50ms amplitude updates from expo-av must drive a Reanimated shared value, NOT React state. Using `useState` for 20Hz updates will cause frame drops. Always use `useSharedValue` + `useAnimatedStyle`. See Section 15 Tier 3 and Section 16.2 for the full rendering tier rules.
 
 8. **Reference feature vectors must be cached.** Loading a `.npz` file from S3 on every analysis request adds 500ms+ of latency. Load into Redis on first access, cache indefinitely (reference data is immutable).
 
 9. **Score validation before launch is non-negotiable.** The scoring weights (40/30/20/10) are starting estimates. They MUST be validated with real reciters and Tajweed experts. If expert evaluation shows the scores feel arbitrary, adjust the weights and normalization before going live.
 
 10. **Expo Router dynamic routes need error handling.** If `[ayahId].tsx` receives an invalid ID (user navigates directly via deep link), the screen must show a graceful error state, not crash.
+
+11. **Studio state must be a state machine, not scattered booleans.** Never use independent `isRecording`, `isPlaying`, `isUploading` flags. Use the `studioStore` state machine (Section 14 + 15) which enforces valid transitions and prevents impossible states like "playing while recording" or "uploading without a recording." Invalid transitions are no-ops, not crashes.
+
+12. **Never construct raw fetch() calls in screen or hook code.** All network requests go through `core/api/client.ts` (Section 16.3). This ensures consistent auth headers, error normalization, retry logic, and timeout handling. Direct fetch calls bypass all of these and will cause inconsistent error behavior.
+
+13. **Preload reference audio before the user needs it.** If the reference audio isn't buffered when the user enters the Studio screen, there's a visible delay that breaks the flow. Preload from the ayah list screen (Section 16.4). The studio should mount into `ready` state within 500ms.
 
 ---
 
